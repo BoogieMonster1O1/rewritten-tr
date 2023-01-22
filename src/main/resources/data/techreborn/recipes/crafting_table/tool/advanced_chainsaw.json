@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " DD",
+    "TBD",
+    "ST "
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "B": {
+      "item": "techreborn:lithium_ion_battery"
+    },
+    "T": {
+      "tag": "c:titanium_ingots"
+    },
+    "S": {
+      "item": "techreborn:basic_chainsaw"
+    }
+  },
+  "result": {
+    "item": "techreborn:advanced_chainsaw"
+  }
+}

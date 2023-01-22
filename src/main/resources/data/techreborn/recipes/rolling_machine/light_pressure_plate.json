@@ -1,0 +1,19 @@
+{
+  "type": "techreborn:rolling_machine",
+  "shaped": {
+    "pattern": [
+      "II"
+    ],
+    "key": {
+      "I": {
+        "item": "minecraft:gold_ingot"
+      }
+    },
+    "result": {
+      "item": "minecraft:light_weighted_pressure_plate",
+      "count": 2
+    }
+  },
+  "power": 5,
+  "time": 250
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "TTT",
+    "CCC",
+    "TTT"
+  ],
+  "key": {
+    "C": {
+      "item": "techreborn:nak_coolant_cell_60k"
+    },
+    "T": {
+      "tag": "c:tin_ingots"
+    }
+  },
+  "result": {
+    "item": "techreborn:nak_coolant_cell_180k"
+  }
+}

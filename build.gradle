@@ -1,0 +1,405 @@
+buildscript {
+	dependencies {
+		classpath 'org.kohsuke:github-api:1.135'
+	}
+}
+
+plugins {
+	id 'java'
+    id 'groovy'
+    id 'java-library'
+	id 'idea'
+	id 'eclipse'
+	id 'maven-publish'
+	id 'com.diffplug.spotless' version '6.12.0'
+	id 'fabric-loom' version '1.0-SNAPSHOT'
+	id 'com.matthewprenger.cursegradle' version '1.4.0'
+	id 'de.undercouch.download' version '4.1.1'
+}
+
+repositories {
+	maven {
+        name "REI"
+		url "https://maven.shedaniel.me/"
+        content {
+            includeGroup "me.shedaniel"
+            includeGroup "me.shedaniel.cloth"
+            includeGroup "dev.architectury"
+        }
+	}
+	mavenCentral()
+}
+
+def ENV = System.getenv()
+
+group = 'TechReborn'
+
+allprojects {
+    version = project.mod_version + (ENV.GITHUB_ACTIONS ? "" : "+local")
+
+    apply plugin: "fabric-loom"
+    apply plugin: "maven-publish"
+	apply plugin: "com.diffplug.spotless"
+
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+
+    loom {
+        runtimeOnlyLog4j = true
+        splitEnvironmentSourceSets()
+    }
+
+    // Shared deps between TR and RC
+    dependencies {
+        minecraft "com.mojang:minecraft:${project.minecraft_version}"
+        mappings "net.fabricmc:yarn:${project.yarn_version}:v2"
+        modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+        //Fabric api
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fapi_version}"
+
+        include(modApi("teamreborn:energy:${project.energy_version}")) {
+            transitive = false
+        }
+    }
+
+    processResources {
+        inputs.property "version", project.version
+
+        filesMatching("fabric.mod.json") {
+            expand "version": project.version
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.encoding = "UTF-8"
+        it.options.release = 17
+    }
+
+    java {
+        withSourcesJar()
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                groupId project.name
+                artifactId project.archivesBaseName  + "-" + getBranch()
+                version project.version
+
+                from components.java
+            }
+        }
+        repositories {
+            if (ENV.MAVEN_URL) {
+                maven {
+                    url ENV.MAVEN_URL
+                    credentials {
+                        username ENV.MAVEN_USERNAME
+                        password ENV.MAVEN_PASSWORD
+                    }
+                }
+            }
+        }
+    }
+
+	spotless {
+		java {
+			licenseHeaderFile(file("HEADER"))
+			removeUnusedImports()
+			indentWithTabs()
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+	}
+}
+
+spotless {
+	groovy {
+		licenseHeaderFile(file("HEADER"))
+		indentWithTabs()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+processResources {
+    doLast {
+        // Depend on the reborn core version it was built against
+        fileTree(dir: outputs.files.asPath, include: "fabric.mod.json").each {
+            def jsonSlurper = new JsonSlurper()
+            def modJson = jsonSlurper.parseText(it.text)
+
+            modJson.depends.reborncore = "~${project.version}"
+
+            it.text = JsonOutput.toJson(modJson)
+        }
+    }
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/techreborn.accesswidener")
+}
+
+sourceSets {
+    // Add a data gen sourceset
+    datagen {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+        compileClasspath += main.output
+        runtimeClasspath += main.output
+    }
+
+    gametest {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+        compileClasspath += main.output
+        runtimeClasspath += main.output
+    }
+
+    main {
+        resources {
+            srcDirs += [
+                'src/main/generated'
+            ]
+        }
+    }
+}
+
+allprojects {
+    loom {
+        mods {
+            reborncore {
+                sourceSet project(":RebornCore").sourceSets.main
+                sourceSet project(":RebornCore").sourceSets.client
+            }
+            techreborn {
+                sourceSet project(":").sourceSets.main
+                sourceSet project(":").sourceSets.client
+            }
+            "techreborn-datagen" {
+                sourceSet project(":").sourceSets.datagen
+            }
+            "techreborn-gametest" {
+                sourceSet project(":").sourceSets.gametest
+            }
+        }
+    }
+}
+
+// TechReborn specific dependencies
+dependencies {
+    api project(path: ":RebornCore", configuration: "namedElements")
+    clientImplementation project(":RebornCore").sourceSets.client.output
+
+    include project(":RebornCore")
+
+	optionalClientDependency("me.shedaniel:RoughlyEnoughItems-fabric:${project.rei_version}", true)
+
+    // Use groovy for datagen/gametest, if you are copying this you prob dont want it.
+    gametestImplementation 'org.apache.groovy:groovy:4.0.6'
+    datagenImplementation 'org.apache.groovy:groovy:4.0.6'
+
+    gametestImplementation ("com.google.truth:truth:1.1.3") {
+        exclude module: "guava"
+        exclude module: "asm"
+    }
+}
+
+def optionalClientDependency(String dep, runtime = true) {
+	def exclude = {
+		exclude group: "net.fabricmc.fabric-api"
+		exclude group: "net.fabricmc"
+	}
+	dependencies.modClientCompileOnly(dep, exclude)
+
+	if (runtime) {
+		dependencies.modClientRuntimeOnly(dep, exclude)
+	}
+}
+
+loom {
+    runs {
+        // Add a data gen run config
+        datagen {
+            server()
+            name "Data Generation"
+            vmArg "-Dfabric-api.datagen"
+            vmArg "-Dfabric-api.datagen.output-dir=${file("src/main/generated")}"
+            vmArg "-Dfabric-api.datagen.modid=techreborn-datagen"
+            runDir "build/datagen"
+            source sourceSets.datagen
+        }
+
+        // Use to run the tests
+        gametest {
+            server()
+            name "Game Test"
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=${project.buildDir}/junit.xml"
+            runDir "build/gametest"
+            source sourceSets.gametest
+        }
+
+        // Use to debug tests
+        gametestClient {
+            client()
+            name "Game Test Client"
+            source sourceSets.gametest
+        }
+    }
+}
+
+runDatagen {
+    // Doesn't re-run the task when its up-to date
+    outputs.dir('src/main/generated')
+}
+
+tasks.sourcesJar.dependsOn runDatagen
+
+jar {
+	exclude "**/*.psd"
+    from file('src/main/generated')
+	from { crowdin.getDidWork() ? fileTree('build/translations').matching{exclude "**/en_US.json"} : null}
+
+    // A bit of a hack to allow the generated sources when they already exist
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	dependsOn 'fixTranslations'
+    dependsOn 'runDatagen'
+}
+
+task crowdinExport() {
+    description "Triggers crowdin to export the latest translations"
+	onlyIf {
+		ENV.CROWDIN_KEY
+	}
+	doLast{
+		def apiKey = ENV.CROWDIN_KEY
+		def projectId = 'techreborn'
+		def response = new URL(sprintf('https://api.crowdin.com/api/project/%1$s/export?key=%2$s', [projectId, apiKey])).text
+		def metadata = new XmlParser().parseText(response)
+		project.logger.lifecycle("crowdin export status: " + metadata.@status)
+	}
+}
+
+task crowdin(type: Download, dependsOn: 'crowdinExport'){
+    description "Downloads translations from CrowdIn"
+	src 'https://crowdin.com/backend/download/project/techreborn.zip'
+	dest file("build/translations.zip")
+	overwrite true
+}
+
+task cleanCrowdin(type: Delete){
+    description "Delete old translations"
+	delete 'build/translations'
+}
+
+task renameCrowdin(type: Copy, dependsOn: ['crowdin', 'cleanCrowdin']){
+    description "Renames the translation files to be all lower case"
+	mustRunAfter 'crowdin'
+	from zipTree(file("build/translations.zip"))
+	into file('build/translations')
+	rename {
+		String filename -> return filename.toLowerCase()
+	}
+	doFirst {
+		file('build/translations').deleteDir()
+	}
+}
+
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+
+task fixTranslations(dependsOn: ['renameCrowdin']) {
+    description "Remove all translations that do not have an entry, ensures that minecraft falls back to EN_US over writing out an empty string"
+	def jsonSlurper = new JsonSlurper()
+	doLast {
+		file('build/translations').eachFileRecurse(groovy.io.FileType.FILES) {
+			if(it.name.endsWith(".json")) {
+				def lang = jsonSlurper.parseText(it.text)
+				lang.values().removeIf { val -> val.empty}
+				it.text = JsonOutput.prettyPrint(JsonOutput.toJson(lang))
+			}
+		}
+	}
+}
+
+import groovy.util.XmlSlurper
+
+curseforge {
+	if (ENV.CURSEFORGE_API_KEY) {
+		apiKey = ENV.CURSEFORGE_API_KEY
+	}
+
+	project {
+		id = "233564"
+		changelog = ENV.CHANGELOG ?: "No changelog provided"
+		releaseType = ENV.RELEASE_CHANNEL ?: "release"
+		addGameVersion "1.19.3" // Also update in RebornCore/build.gradle
+		addGameVersion "Fabric"
+
+		mainArtifact remapJar
+		relations {
+			requiredDependency 'reborncore'
+		}
+
+		afterEvaluate {
+			uploadTask.dependsOn("remapJar")
+		}
+	}
+
+	options {
+		forgeGradleIntegration = false
+	}
+}
+
+def getBranch() {
+	def ENV = System.getenv()
+	if (ENV.GITHUB_REF) {
+		def branch = ENV.GITHUB_REF
+		return branch.substring(branch.lastIndexOf("/") + 1)
+	}
+
+	return "unknown"
+}
+
+import org.kohsuke.github.GHReleaseBuilder
+import org.kohsuke.github.GitHub
+
+task github(dependsOn: remapJar) {
+	onlyIf {
+		ENV.GITHUB_TOKEN
+	}
+
+	doLast {
+		def github = GitHub.connectUsingOAuth(ENV.GITHUB_TOKEN as String)
+		def repository = github.getRepository(ENV.GITHUB_REPOSITORY)
+
+		def releaseBuilder = new GHReleaseBuilder(repository, version as String)
+		releaseBuilder.name("${archivesBaseName}-${version}")
+		releaseBuilder.body(ENV.CHANGELOG)
+		releaseBuilder.commitish(getBranch())
+
+		def ghRelease = releaseBuilder.create()
+		ghRelease.uploadAsset(file("${project.buildDir}/libs/${archivesBaseName}-${version}.jar"), "application/java-archive")
+        ghRelease.uploadAsset(file("RebornCore/build/libs/RebornCore-${version}.jar"), "application/java-archive")
+	}
+}
+github.dependsOn(project(":RebornCore").getTasks().getByName("remapJar"))
+
+// A task to ensure that the version being released has not already been released.
+task checkVersion {
+	doFirst {
+		def xml = new URL("https://maven.modmuss50.me/TechReborn/TechReborn-1.17/maven-metadata.xml").text
+		def metadata = new XmlSlurper().parseText(xml)
+		def versions = metadata.versioning.versions.version*.text();
+		if (versions.contains(version)) {
+			throw new RuntimeException("${version} has already been released!")
+		}
+	}
+}
+
+github.mustRunAfter checkVersion
+publish.mustRunAfter checkVersion
+project.tasks.curseforge.mustRunAfter checkVersion

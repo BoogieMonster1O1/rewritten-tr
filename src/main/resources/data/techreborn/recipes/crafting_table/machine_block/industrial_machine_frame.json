@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "CTC",
+    "TBT",
+    "CTC"
+  ],
+  "key": {
+    "B": {
+      "item": "techreborn:advanced_machine_frame"
+    },
+    "C": {
+      "tag": "c:chromium_plates"
+    },
+    "T": {
+      "tag": "c:titanium_plates"
+    }
+  },
+  "result": {
+    "item": "techreborn:industrial_machine_frame"
+  }
+}

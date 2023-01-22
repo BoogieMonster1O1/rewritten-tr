@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "group": "advanced_machine_casing",
+  "pattern": [
+    "RRR",
+    "CAC",
+    "RRR"
+  ],
+  "key": {
+    "A": {
+      "item": "techreborn:advanced_machine_frame"
+    },
+    "R": {
+      "tag": "c:steel_plates"
+    },
+    "C": {
+      "item": "techreborn:advanced_circuit"
+    }
+  },
+  "result": {
+    "item": "techreborn:advanced_machine_casing",
+    "count": 4
+  }
+}

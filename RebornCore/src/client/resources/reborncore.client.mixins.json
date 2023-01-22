@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "reborncore.client.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+	  "MixinDebugRenderer",
+	  "MixinGameRenderer",
+	  "MixinKeyBinding"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

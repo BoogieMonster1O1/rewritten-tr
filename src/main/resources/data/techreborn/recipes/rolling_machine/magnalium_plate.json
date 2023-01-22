@@ -1,0 +1,24 @@
+{
+  "type": "techreborn:rolling_machine",
+  "shaped": {
+    "pattern": [
+      "AAA",
+      "MMM",
+      "AAA"
+    ],
+    "key": {
+      "A": {
+        "tag": "c:aluminum_ingots"
+      },
+      "M": {
+        "item": "techreborn:magnesium_dust"
+      }
+    },
+    "result": {
+      "item": "techreborn:magnalium_plate",
+      "count": 3
+    }
+  },
+  "power": 5,
+  "time": 250
+}

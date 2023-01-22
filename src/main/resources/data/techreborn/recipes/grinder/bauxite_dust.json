@@ -1,0 +1,16 @@
+{
+    "type": "techreborn:grinder",
+    "power": 4,
+    "time": 270,
+    "ingredients": [
+        {
+            "tag": "c:bauxite_ores"
+        }
+    ],
+    "results": [
+        {
+            "item": "techreborn:bauxite_dust",
+            "count": 2
+        }
+    ]
+}

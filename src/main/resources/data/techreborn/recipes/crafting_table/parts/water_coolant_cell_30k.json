@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "TTT",
+    "CCC",
+    "TTT"
+  ],
+  "key": {
+    "C": {
+      "item": "techreborn:water_coolant_cell_10k"
+    },
+    "T": {
+      "tag": "c:tin_ingots"
+    }
+  },
+  "result": {
+    "item": "techreborn:water_coolant_cell_30k"
+  }
+}
